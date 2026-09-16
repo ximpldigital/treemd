@@ -29,7 +29,14 @@ $ ./treemd.sh docs
 
 ## Hinweise
 
-- POSIX sh, keine Abhängigkeiten außer `find` und `sort`.
+- POSIX sh, keine Abhängigkeiten außer `basename`, `tr` und `sed`.
 - Verzeichnisse enden auf `/`; Symlinks auf Verzeichnisse werden nicht verfolgt.
-- Noch offen: Dateinamen mit Zeilenumbruch brechen die Ausgabe, und
-  Markdown-Sonderzeichen in Namen werden nicht escaped.
+- Namen werden für Markdown maskiert (`` ` ``, `*`, `_`, `[`, `]`, `<`, `>`,
+  `&`, `|`, `~`, `\`), damit sie als Text erscheinen und nicht als Auszeichnung.
+- Steuerzeichen im Namen (Zeilenumbruch, Tabulator, CR) werden zu Leerzeichen,
+  damit ein Eintrag eine Zeile bleibt.
+- Der Baum wird über Globs gelesen, nicht über `find | sort` — dadurch sind
+  auch Namen mit Zeilenumbruch unkritisch.
+- Sortierung in C-Collation (`LC_ALL=C`): versteckte Einträge zuerst,
+  Großbuchstaben vor Kleinbuchstaben.
+- Nicht lesbare Verzeichnisse werden übersprungen, mit einem Hinweis auf stderr.

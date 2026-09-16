@@ -2,6 +2,10 @@
 # treemd — gibt einen Verzeichnisbaum als Markdown-Liste aus.
 set -eu
 
+# Deterministische Sortierung der Globs, unabhängig von der Locale.
+LC_ALL=C
+export LC_ALL
+
 usage() {
     cat <<'EOF'
 Verwendung: treemd.sh [-a] [-d TIEFE] [VERZEICHNIS]
@@ -40,24 +44,61 @@ if [ ! -d "$root" ]; then
     exit 1
 fi
 
+# Zeilenumbruch als Variable, damit case ihn erkennen kann.
+NL=$(printf '\nx'); NL=${NL%x}
+TAB=$(printf '\tx'); TAB=${TAB%x}
+
+# Einen Dateinamen so ausgeben, dass Markdown ihn als Text darstellt:
+# Sonderzeichen werden mit \ maskiert, Steuerzeichen (Zeilenumbruch,
+# Tabulator, CR) durch Leerzeichen ersetzt, damit die Zeile eine bleibt.
+# Der Schnellpfad ohne Fork deckt gewöhnliche Namen ab.
+md_escape() {
+    case $1 in
+        *[\\\`*_\[\]\<\>\&\|\~]* | *"$NL"* | *"$TAB"* | *"$(printf '\r')"*)
+            printf '%s' "$1" \
+                | tr '\n\r\t' '   ' \
+                | sed 's/[][\`*_<>&|~\\]/\\&/g'
+            ;;
+        *)
+            printf '%s' "$1"
+            ;;
+    esac
+}
+
 # Ein Verzeichnis ausgeben und, solange die Tiefe es erlaubt, absteigen.
 # Der Funktionsrumpf ist eine Subshell: so bleiben dir/indent/depth
 # bei der Rekursion getrennt.
+#
+# Die Einträge kommen aus Globs, nicht aus `find | sort | read` — Globs
+# überstehen jedes Zeichen im Dateinamen, auch Zeilenumbrüche.
 walk() (
     dir=$1
     indent=$2
     depth=$3
 
     if [ "$show_hidden" -eq 1 ]; then
-        find "$dir" -mindepth 1 -maxdepth 1
+        set -- "$dir"/.[!.]* "$dir"/..?* "$dir"/*
     else
-        find "$dir" -mindepth 1 -maxdepth 1 ! -name '.*'
-    fi | LC_ALL=C sort | while IFS= read -r entry; do
-        name=${entry##*/}
+        set -- "$dir"/*
+    fi
+
+    for entry do
+        # Kein Treffer: das Muster steht unverändert da (leeres oder
+        # nicht lesbares Verzeichnis).
+        [ -e "$entry" ] || [ -L "$entry" ] || continue
+
+        name=$(md_escape "${entry##*/}"; printf x); name=${name%x}
+
         if [ -d "$entry" ] && [ ! -L "$entry" ]; then
             printf '%s- %s/\n' "$indent" "$name"
             if [ "$max_depth" -eq 0 ] || [ "$depth" -lt "$max_depth" ]; then
-                walk "$entry" "$indent  " $((depth + 1))
+                if [ -r "$entry" ]; then
+                    walk "$entry" "$indent  " $((depth + 1))
+                else
+                    # Stumm bliebe es so aussehen, als wäre es leer.
+                    printf 'treemd: nicht lesbar, übersprungen: %s\n' \
+                        "$entry" >&2
+                fi
             fi
         else
             printf '%s- %s\n' "$indent" "$name"
@@ -66,6 +107,6 @@ walk() (
 )
 
 # Wurzel als eigene Zeile, Kinder darunter eingerückt.
-root_name=$(basename -- "$root")
-printf -- '- %s/\n' "$root_name"
+root_name=$(md_escape "$(basename -- "$root")"; printf x)
+printf -- '- %s/\n' "${root_name%x}"
 walk "$root" '  ' 1
