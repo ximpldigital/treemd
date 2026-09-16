@@ -6,12 +6,13 @@ Notizen oder Dokumentation.
 ## Verwendung
 
 ```sh
-./treemd.sh [-a] [-d TIEFE] [VERZEICHNIS]
+./treemd.sh [-a] [-L] [-d TIEFE] [VERZEICHNIS]
 ```
 
 | Option | Bedeutung |
 |---|---|
 | `-a` | versteckte Einträge (Punktdateien) mit ausgeben |
+| `-L` | Symlinks auf Verzeichnisse verfolgen |
 | `-d TIEFE` | maximale Tiefe, `0` = unbegrenzt (Standard) |
 | `-h` | Hilfe |
 
@@ -27,10 +28,29 @@ $ ./treemd.sh docs
   - sessions/
 ```
 
+Symlinks werden als `name → ziel` ausgewiesen; zeigt der Link auf ein
+Verzeichnis, steht zusätzlich ein `/` hinter dem Namen:
+
+```sh
+$ ./treemd.sh beispiel
+- beispiel/
+  - echt/
+    - datei.txt
+  - kaputter-link → nirgendwo
+  - link-auf-dir/ → echt
+```
+
+Ohne `-L` bleibt es bei dieser einen Zeile, mit `-L` wird in das Ziel
+abgestiegen. Symlink-Zyklen werden erkannt und mit einem Hinweis auf stderr
+abgebrochen.
+
 ## Hinweise
 
-- POSIX sh, keine Abhängigkeiten außer `basename`, `tr` und `sed`.
-- Verzeichnisse enden auf `/`; Symlinks auf Verzeichnisse werden nicht verfolgt.
+- POSIX sh, keine Abhängigkeiten außer `basename`, `readlink`, `tr` und `sed`.
+- Verzeichnisse enden auf `/`; Symlinks werden nur mit `-L` verfolgt.
+- `-h` gibt die Hilfe farbig aus, sofern die Ausgabe auf einem Terminal landet.
+  Abschalten mit `NO_COLOR=1` oder `TERM=dumb`; in einer Pipe bleibt sie ohnehin
+  ohne Escape-Sequenzen. Der Baum selbst ist immer unformatiertes Markdown.
 - Namen werden für Markdown maskiert (`` ` ``, `*`, `_`, `[`, `]`, `<`, `>`,
   `&`, `|`, `~`, `\`), damit sie als Text erscheinen und nicht als Auszeichnung.
 - Steuerzeichen im Namen (Zeilenumbruch, Tabulator, CR) werden zu Leerzeichen,
