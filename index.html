@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="treemd verwandelt Verzeichnisstrukturen in saubere Markdown-Listen – direkt im Terminal, ohne Installation und ohne Laufzeit-Abhängigkeiten."
+    />
+    <meta name="theme-color" content="#07120f" />
+    <title>treemd – Verzeichnisbäume als Markdown</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #f4f0e7;
+        --muted: #aab9b2;
+        --green: #9ee8c3;
+        --green-dark: #163f31;
+        --amber: #f1c27a;
+        --line: rgba(201, 232, 218, 0.14);
+        --panel: rgba(11, 28, 23, 0.72);
+        --bg: #07120f;
+        --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+
+      html { scroll-behavior: smooth; }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 78% 20%, rgba(61, 126, 98, 0.14), transparent 32rem),
+          var(--bg);
+        font-family: var(--sans);
+        line-height: 1.6;
+      }
+
+      a { color: inherit; }
+
+      .wrap {
+        width: min(1160px, calc(100% - 40px));
+        margin-inline: auto;
+      }
+
+      header {
+        position: absolute;
+        z-index: 10;
+        inset: 0 0 auto;
+        padding: 24px 0;
+      }
+
+      nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        font: 700 18px/1 var(--mono);
+        letter-spacing: -0.04em;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 31px;
+        height: 31px;
+        place-items: center;
+        border: 1px solid rgba(158, 232, 195, 0.38);
+        border-radius: 9px;
+        color: var(--green);
+        background: rgba(158, 232, 195, 0.08);
+      }
+
+      .nav-link {
+        color: var(--muted);
+        font-size: 14px;
+        text-decoration: none;
+      }
+
+      .nav-link:hover { color: var(--ink); }
+
+      .hero {
+        position: relative;
+        display: grid;
+        min-height: 760px;
+        align-items: center;
+        overflow: hidden;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .hero::after {
+        position: absolute;
+        inset: auto 0 0;
+        height: 180px;
+        background: linear-gradient(transparent, var(--bg));
+        content: "";
+        pointer-events: none;
+      }
+
+      .hero-art {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        opacity: 0.68;
+        filter: saturate(0.88);
+      }
+
+      .hero-shade {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(90deg, var(--bg) 5%, rgba(7, 18, 15, 0.95) 33%, rgba(7, 18, 15, 0.23) 68%, rgba(7, 18, 15, 0.35)),
+          linear-gradient(180deg, rgba(7, 18, 15, 0.5), transparent 36%);
+      }
+
+      .hero-content {
+        position: relative;
+        z-index: 2;
+        width: min(640px, 56%);
+        padding: 150px 0 96px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 22px;
+        color: var(--green);
+        font: 600 12px/1 var(--mono);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .eyebrow::before {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 14px var(--green);
+        content: "";
+      }
+
+      h1 {
+        max-width: 720px;
+        margin: 0;
+        font-size: clamp(3.5rem, 7vw, 6.8rem);
+        font-weight: 650;
+        letter-spacing: -0.075em;
+        line-height: 0.92;
+      }
+
+      h1 span { color: var(--green); }
+
+      .lead {
+        max-width: 560px;
+        margin: 28px 0 0;
+        color: #c4cec9;
+        font-size: clamp(1.08rem, 1.6vw, 1.25rem);
+        line-height: 1.65;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 34px;
+      }
+
+      .button {
+        display: inline-flex;
+        min-height: 48px;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        padding: 0 20px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 700;
+        text-decoration: none;
+        transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+      }
+
+      .button:hover { transform: translateY(-2px); }
+
+      .button-primary {
+        border-color: var(--green);
+        color: #082017;
+        background: var(--green);
+      }
+
+      .button-secondary { background: rgba(7, 18, 15, 0.55); }
+      .button-secondary:hover { border-color: rgba(158, 232, 195, 0.48); }
+
+      main { overflow: hidden; }
+
+      .section {
+        padding: 112px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .section-kicker {
+        margin: 0 0 12px;
+        color: var(--green);
+        font: 600 12px/1 var(--mono);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      h2 {
+        max-width: 720px;
+        margin: 0;
+        font-size: clamp(2rem, 4vw, 3.7rem);
+        font-weight: 620;
+        letter-spacing: -0.055em;
+        line-height: 1.05;
+      }
+
+      .demo-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 0.8fr) minmax(480px, 1.2fr);
+        gap: clamp(48px, 8vw, 110px);
+        align-items: center;
+      }
+
+      .body-copy {
+        margin: 22px 0 0;
+        color: var(--muted);
+        font-size: 17px;
+      }
+
+      .terminal {
+        overflow: hidden;
+        border: 1px solid rgba(201, 232, 218, 0.2);
+        border-radius: 16px;
+        background: #091410;
+        box-shadow: 0 28px 80px rgba(0, 0, 0, 0.32);
+      }
+
+      .terminal-bar {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        height: 46px;
+        padding: 0 17px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.025);
+      }
+
+      .dot { width: 9px; height: 9px; border-radius: 50%; background: #315044; }
+      .dot:first-child { background: var(--amber); }
+      .terminal-title { margin-left: 7px; color: #71857c; font: 11px var(--mono); }
+
+      pre {
+        margin: 0;
+        overflow-x: auto;
+        padding: 28px;
+        color: #ced9d3;
+        font: 14px/1.78 var(--mono);
+        tab-size: 2;
+      }
+
+      .prompt { color: var(--green); }
+      .dim { color: #71857c; }
+      .folder { color: #f5dfaf; }
+
+      .features {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        margin-top: 60px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        overflow: hidden;
+        background: var(--line);
+      }
+
+      .feature {
+        min-height: 250px;
+        padding: 32px;
+        background: var(--bg);
+      }
+
+      .feature-number {
+        color: #587167;
+        font: 12px var(--mono);
+      }
+
+      .feature h3 {
+        margin: 50px 0 10px;
+        font-size: 20px;
+        letter-spacing: -0.03em;
+      }
+
+      .feature p { margin: 0; color: var(--muted); font-size: 15px; }
+
+      .start-card {
+        display: grid;
+        grid-template-columns: 1fr 1.1fr;
+        gap: 48px;
+        align-items: center;
+        padding: clamp(30px, 5vw, 64px);
+        border: 1px solid rgba(158, 232, 195, 0.23);
+        border-radius: 20px;
+        background:
+          radial-gradient(circle at 100% 0, rgba(158, 232, 195, 0.12), transparent 48%),
+          var(--panel);
+      }
+
+      .command {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+        padding: 12px 12px 12px 18px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #06100d;
+      }
+
+      .command code {
+        min-width: 0;
+        overflow-x: auto;
+        color: #dce6e1;
+        font: 13px var(--mono);
+        white-space: nowrap;
+      }
+
+      .copy {
+        flex: none;
+        margin-left: auto;
+        padding: 9px 12px;
+        border: 0;
+        border-radius: 8px;
+        color: #082017;
+        background: var(--green);
+        font: 700 12px var(--sans);
+        cursor: pointer;
+      }
+
+      footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 28px 0 40px;
+        color: #71857c;
+        font-size: 13px;
+      }
+
+      footer a { text-decoration: none; }
+      footer a:hover { color: var(--ink); }
+
+      @media (max-width: 820px) {
+        .hero { min-height: 720px; align-items: end; }
+        .hero-art { object-position: 63% center; opacity: 0.45; }
+        .hero-shade {
+          background: linear-gradient(180deg, rgba(7, 18, 15, 0.25), rgba(7, 18, 15, 0.91) 58%, var(--bg));
+        }
+        .hero-content { width: 100%; padding: 180px 0 96px; }
+        .demo-grid, .start-card { grid-template-columns: 1fr; }
+        .demo-grid { gap: 42px; }
+        .features { grid-template-columns: 1fr; }
+        .feature { min-height: 210px; }
+        .feature h3 { margin-top: 34px; }
+      }
+
+      @media (max-width: 520px) {
+        .wrap { width: min(100% - 28px, 1160px); }
+        .nav-link { display: none; }
+        .hero { min-height: 700px; }
+        h1 { font-size: clamp(3.3rem, 17vw, 5rem); }
+        .actions { align-items: stretch; flex-direction: column; }
+        .section { padding: 82px 0; }
+        .terminal pre { padding: 22px 18px; font-size: 12px; }
+        .start-card { padding: 26px 20px; }
+        .command { align-items: stretch; flex-direction: column; }
+        .copy { margin-left: 0; }
+        footer { flex-direction: column; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        .button { transition: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav class="wrap" aria-label="Hauptnavigation">
+        <a class="brand" href="#top" aria-label="treemd Startseite">
+          <span class="brand-mark" aria-hidden="true">⌁</span>
+          treemd
+        </a>
+        <a class="nav-link" href="#start">In 30 Sekunden starten ↓</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <img class="hero-art" src="assets/treemd-hero.png" alt="Abstrakter Verzeichnisbaum, der in Markdown-Listen übergeht" />
+        <div class="hero-shade" aria-hidden="true"></div>
+        <div class="wrap">
+          <div class="hero-content">
+            <p class="eyebrow">Ein kleines POSIX-Shell-Tool</p>
+            <h1 id="hero-title">Dein Dateibaum.<br /><span>Als Markdown.</span></h1>
+            <p class="lead">
+              treemd macht aus jedem Verzeichnis eine saubere, einfügungsfertige Markdown-Liste – für READMEs, Notizen und Dokumentation.
+            </p>
+            <div class="actions">
+              <a class="button button-primary" href="treemd.sh" download>treemd.sh herunterladen ↓</a>
+              <a class="button button-secondary" href="#demo">Ausgabe ansehen</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="demo">
+        <div class="wrap demo-grid">
+          <div>
+            <p class="section-kicker">Ein Befehl. Fertig.</p>
+            <h2>Ordnung, die du direkt einfügen kannst.</h2>
+            <p class="body-copy">
+              Keine Nachbearbeitung, kein Nachzeichnen. treemd gibt ausschließlich gültiges, unformatiertes Markdown aus – bereit für deine Doku.
+            </p>
+          </div>
+          <div class="terminal" aria-label="Beispielausgabe im Terminal">
+            <div class="terminal-bar" aria-hidden="true">
+              <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              <span class="terminal-title">terminal — docs</span>
+            </div>
+            <pre><span class="prompt">$</span> ./treemd.sh docs
+<span class="folder">- docs/</span>
+  - LOG.md
+  - STATE.md
+  <span class="folder">- sessions/</span>
+    - 2026-09-16-grundgeruest.md
+
+<span class="dim"># kopieren · einfügen · fertig</span></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="features-title">
+        <div class="wrap">
+          <p class="section-kicker">Klein im Code. Sorgfältig im Detail.</p>
+          <h2 id="features-title">Gebaut für echte Verzeichnisse.</h2>
+          <div class="features">
+            <article class="feature">
+              <span class="feature-number">01 / PORTABEL</span>
+              <h3>Läuft einfach</h3>
+              <p>POSIX sh und nur Standardwerkzeuge. Keine Installation, kein Paketmanager, keine Runtime.</p>
+            </article>
+            <article class="feature">
+              <span class="feature-number">02 / ROBUST</span>
+              <h3>Sauberes Markdown</h3>
+              <p>Sonderzeichen werden maskiert und ungewöhnliche Dateinamen bleiben zuverlässig in einer Zeile.</p>
+            </article>
+            <article class="feature">
+              <span class="feature-number">03 / KONTROLLIERT</span>
+              <h3>Du bestimmst die Tiefe</h3>
+              <p>Blende Punktdateien ein, begrenze Ebenen oder folge Symlinks – mit eingebautem Zyklusschutz.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="start">
+        <div class="wrap">
+          <div class="start-card">
+            <div>
+              <p class="section-kicker">Direkt loslegen</p>
+              <h2>Zwei Zeilen bis zum ersten Baum.</h2>
+              <p class="body-copy">Datei laden, ausführbar machen und auf ein Verzeichnis zeigen.</p>
+            </div>
+            <div>
+              <div class="command">
+                <code id="command">chmod +x treemd.sh &amp;&amp; ./treemd.sh docs</code>
+                <button class="copy" type="button" data-copy="command">Kopieren</button>
+              </div>
+              <p class="body-copy" style="font-size: 13px; margin-top: 14px">
+                Optionen: <code>-a</code> Punktdateien · <code>-L</code> Symlinks · <code>-d TIEFE</code> Ebenen
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="wrap">
+      <span>treemd · Markdown aus dem Terminal</span>
+      <a href="README.md">Dokumentation lesen →</a>
+    </footer>
+
+    <script>
+      const copyButton = document.querySelector("[data-copy]");
+
+      copyButton.addEventListener("click", async () => {
+        const value = document.getElementById(copyButton.dataset.copy).textContent;
+        try {
+          await navigator.clipboard.writeText(value);
+          copyButton.textContent = "Kopiert ✓";
+          setTimeout(() => (copyButton.textContent = "Kopieren"), 1800);
+        } catch {
+          const range = document.createRange();
+          range.selectNodeContents(document.getElementById(copyButton.dataset.copy));
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      });
+    </script>
+  </body>
+</html>
